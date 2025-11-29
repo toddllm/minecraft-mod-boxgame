@@ -26,6 +26,10 @@ public class ArenaTeleporterItem extends Item {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         if (!world.isClient) {
+            if (com.antigravity.trapplatform.TrapPlatformMod.ARE_TELEPORTERS_DISABLED) {
+                user.sendMessage(Text.of("§cThe Void Queen's influence blocks your escape..."), true);
+                return TypedActionResult.fail(user.getStackInHand(hand));
+            }
             System.out.println("Item used by " + user.getName().getString());
             if (user instanceof ServerPlayerEntity player) {
                 ServerWorld serverWorld = player.getServer().getWorld(ARENA_KEY);

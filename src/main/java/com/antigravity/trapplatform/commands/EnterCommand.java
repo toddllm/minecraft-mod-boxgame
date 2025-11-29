@@ -15,7 +15,9 @@ public class EnterCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(CommandManager.literal("trapplatform")
                 .then(CommandManager.literal("enter")
-                        .executes(EnterCommand::enter)));
+                        .executes(EnterCommand::enter))
+                .then(CommandManager.literal("spawnfear")
+                        .executes(EnterCommand::spawnFear)));
     }
 
     private static int enter(CommandContext<ServerCommandSource> context) {
@@ -40,6 +42,20 @@ public class EnterCommand {
             // Teleport
             player.teleport(serverWorld, 0.5, 101, 0.5, 0, 0);
             source.sendFeedback(() -> Text.of("§aTeleported to Arena via Command!"), true);
+            return 1;
+        }
+        return 0;
+    }
+
+    private static int spawnFear(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        if (source.getEntity() instanceof ServerPlayerEntity player) {
+            BlockPos spawn = player.getServerWorld().getSpawnPos();
+            int xOffset = (int) player.getX() - spawn.getX() + 5;
+            int zOffset = (int) player.getZ() - spawn.getZ();
+
+            com.antigravity.trapplatform.TrapManager.spawnFearBoss(player.getServerWorld(), xOffset, zOffset);
+            source.sendFeedback(() -> Text.of("§cSpawned Fear Boss nearby!"), true);
             return 1;
         }
         return 0;

@@ -17,6 +17,9 @@
   "entrypoints": {
     "main": [
       "com.antigravity.trapplatform.TrapPlatformMod"
+    ],
+    "client": [
+      "com.antigravity.trapplatform.client.TrapPlatformClientMod"
     ]
   },
   "mixins": [

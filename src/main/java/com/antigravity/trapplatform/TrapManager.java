@@ -86,6 +86,12 @@ public class TrapManager {
         if (arenaWorld != null) {
             tickBox(arenaWorld);
         }
+
+        // Fear Boss Logic
+        ServerWorld overworld = server.getOverworld();
+        if (overworld != null) {
+            tickFearBoss(overworld);
+        }
     }
 
     private static void tickBox(ServerWorld world) {
@@ -236,9 +242,10 @@ public class TrapManager {
             };
             String[] text = { "§4The Shadow", "§cIs Here...", "§0R...", "§8(FEAR)" };
             com.antigravity.trapplatform.TrapPlatformMod.generateStructure(overworld, 80, shape, text);
-            net.minecraft.util.math.BlockPos rPos = overworld.getSpawnPos().add(80, 0, 20);
+            net.minecraft.util.math.BlockPos bossPos = overworld.getSpawnPos().add(100, 0, 20);
             player.sendMessage(Text
-                    .of("§4§lTHE NAME IS COMPLETE. FEAR HIM. (Look at X=" + rPos.getX() + ", Z=" + rPos.getZ() + ")"),
+                    .of("§4§lTHE NAME IS COMPLETE. FEAR HIM. (Look at X=" + bossPos.getX() + ", Z=" + bossPos.getZ()
+                            + ")"),
                     false);
 
             // Spawn Boss
@@ -249,7 +256,7 @@ public class TrapManager {
         }
     }
 
-    private static void spawnFearBoss(ServerWorld world, int x, int z) {
+    public static void spawnFearBoss(ServerWorld world, int x, int z) {
         net.minecraft.util.math.BlockPos pos = world.getTopPosition(net.minecraft.world.Heightmap.Type.WORLD_SURFACE,
                 world.getSpawnPos().add(x, 0, z));
 
@@ -260,8 +267,9 @@ public class TrapManager {
         beast.setCustomNameVisible(true);
         beast.setPersistent();
 
-        // The Master (Evoker)
-        net.minecraft.entity.mob.EvokerEntity master = net.minecraft.entity.EntityType.EVOKER.create(world);
+        // The Master (Fear Entity)
+        com.antigravity.trapplatform.entity.FearEntity master = com.antigravity.trapplatform.TrapPlatformMod.FEAR_ENTITY
+                .create(world);
         master.setPosition(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
         master.setCustomName(Text.of("§4§lFEAR"));
         master.setCustomNameVisible(true);
@@ -269,6 +277,25 @@ public class TrapManager {
 
         // Buffs
         master.setAbsorptionAmount(50.0f); // Extra health for the master
+
+        // Equip Gear
+        master.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND,
+                new net.minecraft.item.ItemStack(net.minecraft.item.Items.NETHERITE_AXE));
+        master.equipStack(net.minecraft.entity.EquipmentSlot.HEAD,
+                new net.minecraft.item.ItemStack(net.minecraft.item.Items.NETHERITE_HELMET));
+        master.equipStack(net.minecraft.entity.EquipmentSlot.CHEST,
+                new net.minecraft.item.ItemStack(net.minecraft.item.Items.NETHERITE_CHESTPLATE));
+        master.equipStack(net.minecraft.entity.EquipmentSlot.LEGS,
+                new net.minecraft.item.ItemStack(net.minecraft.item.Items.NETHERITE_LEGGINGS));
+        master.equipStack(net.minecraft.entity.EquipmentSlot.FEET,
+                new net.minecraft.item.ItemStack(net.minecraft.item.Items.NETHERITE_BOOTS));
+
+        // Apply Bad Omen (Visual + Effect)
+        master.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                net.minecraft.entity.effect.StatusEffects.BAD_OMEN, -1, 4, false, true));
+
+        // Spawn Ominous Banners around
+        placeOminousBanners(world, pos);
 
         // Spawn and Mount
         world.spawnEntity(beast);
@@ -278,7 +305,7 @@ public class TrapManager {
         fearBoss = master;
     }
 
-    private static net.minecraft.entity.mob.EvokerEntity fearBoss;
+    private static com.antigravity.trapplatform.entity.FearEntity fearBoss;
     private static int fearTimer = 0;
 
     private static void tickFearBoss(ServerWorld world) {
@@ -336,6 +363,34 @@ public class TrapManager {
                 fearBoss.startRiding(mount);
             }
         }
+
+        // 6. Stare Mechanic (Bad Luck / Bad Omen)
+        if (fearTimer % 5 == 0) { // Check every 5 ticks (0.25s)
+            for (ServerPlayerEntity player : world.getPlayers()) {
+                if (isLookingAt(player, fearBoss)) {
+                    // Apply Bad Luck (Unluck) - Short duration so it persists only while staring
+                    player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                            net.minecraft.entity.effect.StatusEffects.UNLUCK, 60, 0, true, true));
+
+                    // Chance for Bad Omen (1% per check -> ~4% per second)
+                    if (RANDOM.nextFloat() < 0.01f) {
+                        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                                net.minecraft.entity.effect.StatusEffects.BAD_OMEN, 1200, 0, true, true));
+                        player.sendMessage(Text.of("§4§oYou gazed into the abyss..."), true);
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean isLookingAt(ServerPlayerEntity player, net.minecraft.entity.LivingEntity target) {
+        net.minecraft.util.math.Vec3d vec3d = player.getRotationVec(1.0F).normalize();
+        net.minecraft.util.math.Vec3d vec3d2 = new net.minecraft.util.math.Vec3d(target.getX() - player.getX(),
+                target.getEyeY() - player.getEyeY(), target.getZ() - player.getZ());
+        double d = vec3d2.length();
+        vec3d2 = vec3d2.normalize();
+        double e = vec3d.dotProduct(vec3d2);
+        return e > 1.0 - 0.025 / d && player.canSee(target);
     }
 
     private static void giveLoreBook(ServerPlayerEntity player) {
@@ -382,6 +437,30 @@ public class TrapManager {
                     if (!world.getBlockState(pos).isAir()) {
                         world.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState());
                     }
+                }
+            }
+        }
+    }
+
+    private static void placeOminousBanners(ServerWorld world, net.minecraft.util.math.BlockPos center) {
+        int radius = 5;
+        for (int x = -radius; x <= radius; x += radius * 2) {
+            for (int z = -radius; z <= radius; z += radius * 2) {
+                net.minecraft.util.math.BlockPos pos = world
+                        .getTopPosition(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, center.add(x, 0, z));
+                world.setBlockState(pos, net.minecraft.block.Blocks.OAK_LOG.getDefaultState());
+                world.setBlockState(pos.up(), net.minecraft.block.Blocks.OAK_LOG.getDefaultState());
+
+                // Place Banner
+                net.minecraft.util.math.BlockPos bannerPos = pos.up(2);
+                world.setBlockState(bannerPos, net.minecraft.block.Blocks.WHITE_BANNER.getDefaultState());
+
+                net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(bannerPos);
+                if (be instanceof net.minecraft.block.entity.BannerBlockEntity banner) {
+                    // Ominous Banner Pattern (Raid Captain)
+                    // Note: Creating a true Ominous Banner programmatically is verbose.
+                    // Let's just give it a Skull pattern for "Raider" feel.
+                    // banner.setCustomName(Text.of("§4Raider Banner")); // Removed invalid call
                 }
             }
         }
