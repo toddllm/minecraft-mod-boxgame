@@ -1,0 +1,5 @@
+{
+    "item.trapplatform.teleporter": "Arena Teleporter",
+    "command.trapplatform.enter.success": "Teleported to Arena!",
+    "command.trapplatform.enter.fail": "Could not enter Arena."
+}

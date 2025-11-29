@@ -1,0 +1,19 @@
+{
+    "type": "minecraft:the_nether",
+    "generator": {
+        "type": "minecraft:flat",
+        "settings": {
+            "layers": [
+                {
+                    "block": "minecraft:bedrock",
+                    "height": 1
+                },
+                {
+                    "block": "minecraft:lava",
+                    "height": 30
+                }
+            ],
+            "biome": "minecraft:crimson_forest"
+        }
+    }
+}

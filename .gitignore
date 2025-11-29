@@ -1,0 +1,14 @@
+build/
+run/
+bin/
+.gradle/
+.vscode/
+.idea/
+*.class
+*.jar
+*.zip
+*.tar.gz
+*.DS_Store
+jdk*/
+gradle-dist*/
+gradle-dist-new/
